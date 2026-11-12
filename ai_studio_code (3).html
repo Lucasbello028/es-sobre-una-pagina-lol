@@ -1,0 +1,1661 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inventario de Componentes - CNAE & Supabase</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Supabase JS Client v2 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .fade-in { animation: fadeIn 0.25s ease-in-out; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased">
+
+  <!-- ================= NOTIFICACIONES TOAST ================= -->
+  <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-md w-full pointer-events-none"></div>
+
+  <!-- ================= ENCABEZADO INSTITUCIONAL ================= -->
+  <header class="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white shadow-xl border-b border-indigo-700/50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        
+        <!-- Datos Académicos -->
+        <div class="flex items-start gap-4">
+          <div class="bg-white/10 p-3 rounded-2xl backdrop-blur-md border border-white/20 shadow-inner flex items-center justify-center text-amber-400">
+            <svg class="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
+            </svg>
+          </div>
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-xs font-bold tracking-widest text-indigo-300 uppercase">Proyecto Individual 08</span>
+              <span class="bg-indigo-500/30 text-indigo-200 text-[10px] px-2 py-0.5 rounded-full border border-indigo-400/30 font-semibold">T.M.</span>
+              <span id="supabase-pill" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/30">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"></span> Conectando...
+              </span>
+            </div>
+            <h1 class="text-xl sm:text-2xl font-black text-white tracking-tight mt-0.5">COLEGIO NACIONAL EMD ASUNCIÓN ESCALADA</h1>
+            <p class="text-sm font-medium text-slate-300 mt-1">
+              Inventario de Componentes Electrónicos | <span class="text-amber-300 font-semibold">LUGO IRALA, LUCAS ALFREDO</span>
+            </p>
+            <p class="text-xs text-slate-400">Segundo curso, Tercera sección, Turno mañana | ID: <span class="font-mono text-indigo-300">uafeynxbtsntenerrqat</span></p>
+          </div>
+        </div>
+
+        <!-- Conmutador de Roles -->
+        <div class="bg-white/10 p-2.5 rounded-2xl border border-white/20 backdrop-blur-md flex flex-col sm:flex-row items-center gap-3">
+          <div class="text-left sm:text-right">
+            <p class="text-[11px] uppercase tracking-wider text-slate-300 font-bold">Rol en Sesión</p>
+            <p id="role-display-text" class="text-xs font-bold text-emerald-400 flex items-center gap-1 sm:justify-end">
+              <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              Administrador (Control Total)
+            </p>
+          </div>
+          <div class="flex items-center bg-black/30 p-1 rounded-xl border border-white/10">
+            <button onclick="setRole('admin')" id="role-btn-admin" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-sm bg-indigo-600 text-white">
+              👑 Admin
+            </button>
+            <button onclick="setRole('consulta')" id="role-btn-consulta" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-300 hover:text-white">
+              👁️ Consulta
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= BARRA DE PESTAÑAS ================= -->
+  <nav class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex space-x-2 sm:space-x-8 overflow-x-auto py-2">
+        <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="tab-btn py-2.5 px-3 border-b-2 border-indigo-600 text-indigo-600 font-semibold text-sm flex items-center gap-2 whitespace-nowrap transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          Panel de Control
+        </button>
+        <button onclick="switchTab('componentes')" id="tab-btn-componentes" class="tab-btn py-2.5 px-3 border-b-2 border-transparent text-slate-500 hover:text-slate-700 font-medium text-sm flex items-center gap-2 whitespace-nowrap transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          Componentes
+        </button>
+        <button onclick="switchTab('movimientos')" id="tab-btn-movimientos" class="tab-btn py-2.5 px-3 border-b-2 border-transparent text-slate-500 hover:text-slate-700 font-medium text-sm flex items-center gap-2 whitespace-nowrap transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+          Movimientos y Auditoría
+        </button>
+        <button onclick="switchTab('categorias')" id="tab-btn-categorias" class="tab-btn py-2.5 px-3 border-b-2 border-transparent text-slate-500 hover:text-slate-700 font-medium text-sm flex items-center gap-2 whitespace-nowrap transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+          Categorías
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ================= CONTENEDOR PRINCIPAL ================= -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
+
+    <!-- 1. VISTA: DASHBOARD -->
+    <section id="view-dashboard" class="space-y-6 fade-in">
+      <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-bold text-slate-900">Panel General de Existencias</h2>
+          <p class="text-sm text-slate-500 mt-0.5">Control de inventario sincronizado con Supabase y cálculo dinámico de stock.</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <button onclick="openModalMovimiento()" class="admin-only inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-md transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Registrar Movimiento
+          </button>
+          <button onclick="seedInitialSupabaseData()" class="admin-only inline-flex items-center gap-1.5 text-xs text-indigo-700 hover:text-indigo-900 px-3 py-2 border border-indigo-200 bg-indigo-50/70 rounded-xl transition" title="Sembrar datos iniciales si la base está vacía">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+            Cargar Datos Semilla
+          </button>
+        </div>
+      </div>
+
+      <!-- Tarjetas de Métricas -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Existencias Totales</span>
+            <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+            </div>
+          </div>
+          <div class="mt-4 flex items-baseline gap-2">
+            <span id="metric-total-stock" class="text-3xl font-black text-slate-900">0</span>
+            <span class="text-xs text-slate-400 font-medium">unidades físicas</span>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-2">Suma algebraica neta de entradas y salidas.</p>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-amber-200/80 shadow-sm hover:shadow-md transition bg-gradient-to-br from-white to-amber-50/40">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-amber-700">Stock Crítico / Bajo</span>
+            <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center font-bold">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            </div>
+          </div>
+          <div class="mt-4 flex items-baseline gap-2">
+            <span id="metric-low-stock" class="text-3xl font-black text-amber-600">0</span>
+            <span class="text-xs text-amber-700/80 font-medium">bajo stock mínimo</span>
+          </div>
+          <p class="text-[11px] text-amber-600/90 mt-2">Componentes en alerta de reposición.</p>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-rose-600">Salidas Registradas</span>
+            <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+            </div>
+          </div>
+          <div class="mt-4 flex items-baseline gap-2">
+            <span id="metric-total-salidas" class="text-3xl font-black text-rose-600">0</span>
+            <span class="text-xs text-slate-400 font-medium">unidades egresadas</span>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-2">Egresos para proyectos y laboratorios.</p>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Componentes Únicos</span>
+            <div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/></svg>
+            </div>
+          </div>
+          <div class="mt-4 flex items-baseline gap-2">
+            <span id="metric-total-components" class="text-3xl font-black text-slate-900">0</span>
+            <span class="text-xs text-slate-400 font-medium">referencias en Supabase</span>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-2">Clasificados por categorías técnicas.</p>
+        </div>
+      </div>
+
+      <!-- Cuadrículas del Dashboard -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm flex flex-col">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div class="flex items-center gap-2">
+              <span class="p-1.5 rounded-lg bg-rose-50 text-rose-600">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              </span>
+              <h3 class="text-sm font-bold text-slate-900">Componentes Bajo Stock Mínimo</h3>
+            </div>
+            <button onclick="goToComponentesBajoStock()" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition">Ver todos</button>
+          </div>
+          <div class="mt-3 flex-1 overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="text-slate-400 border-b border-slate-100 font-semibold uppercase text-[10px]">
+                <tr>
+                  <th class="py-2">Código</th>
+                  <th class="py-2">Descripción</th>
+                  <th class="py-2 text-right">Existencia</th>
+                  <th class="py-2 text-right">Mínimo</th>
+                </tr>
+              </thead>
+              <tbody id="dashboard-critical-table" class="divide-y divide-slate-50 font-medium"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm flex flex-col">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div class="flex items-center gap-2">
+              <span class="p-1.5 rounded-lg bg-indigo-50 text-indigo-600">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              </span>
+              <h3 class="text-sm font-bold text-slate-900">Últimos Movimientos Registrados</h3>
+            </div>
+            <button onclick="switchTab('movimientos')" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition">Historial Completo</button>
+          </div>
+          <div class="mt-3 flex-1 overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="text-slate-400 border-b border-slate-100 font-semibold uppercase text-[10px]">
+                <tr>
+                  <th class="py-2">Tipo</th>
+                  <th class="py-2">Componente</th>
+                  <th class="py-2 text-right">Cantidad</th>
+                  <th class="py-2 text-right">Fecha</th>
+                </tr>
+              </thead>
+              <tbody id="dashboard-recent-movements" class="divide-y divide-slate-50 font-medium"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. VISTA: COMPONENTES -->
+    <section id="view-componentes" class="space-y-6 hidden fade-in">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-bold text-slate-900">Catálogo de Componentes Electrónicos</h2>
+          <p class="text-sm text-slate-500">Gestión de existencias en Supabase con parámetros de almacenamiento.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="openModalComponente()" class="admin-only inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-md transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Nuevo Componente
+          </button>
+        </div>
+      </div>
+
+      <!-- Filtros combinados -->
+      <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            Filtros Combinados de Búsqueda
+          </span>
+          <button onclick="clearComponentFilters()" class="text-xs font-semibold text-rose-600 hover:text-rose-800 transition flex items-center gap-1">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            Limpiar Filtros
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Buscar (Código o Nombre)</label>
+            <input type="text" id="filter-cmp-search" oninput="applyComponentFilters()" placeholder="Ej. ESP32, Resistencia, NE555..." class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/50">
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Categoría</label>
+            <select id="filter-cmp-category" onchange="applyComponentFilters()" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/50">
+              <option value="">Todas las categorías</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Ordenar Por</label>
+            <select id="filter-cmp-sort" onchange="applyComponentFilters()" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/50">
+              <option value="code_asc">Código (A - Z)</option>
+              <option value="name_asc">Descripción (A - Z)</option>
+              <option value="stock_asc">Stock Actual (Menor a Mayor)</option>
+              <option value="stock_desc">Stock Actual (Mayor a Menor)</option>
+            </select>
+          </div>
+
+          <div class="flex items-end">
+            <label class="flex items-center gap-2 p-2 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-slate-100/60 cursor-pointer w-full transition">
+              <input type="checkbox" id="filter-cmp-lowstock" onchange="applyComponentFilters()" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300">
+              <span class="text-xs font-semibold text-amber-700 flex items-center gap-1">
+                ⚠️ Solo con Stock Bajo
+              </span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabla de Componentes -->
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50/80 text-slate-500 uppercase text-[10px] font-bold tracking-wider border-b border-slate-200">
+              <tr>
+                <th class="py-3.5 px-4">Código</th>
+                <th class="py-3.5 px-4">Descripción / Especificación</th>
+                <th class="py-3.5 px-4">Categoría</th>
+                <th class="py-3.5 px-4 text-center">Stock Mínimo</th>
+                <th class="py-3.5 px-4 text-center">Stock Actual</th>
+                <th class="py-3.5 px-4 text-center">Estado</th>
+                <th class="py-3.5 px-4 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="component-table-body" class="divide-y divide-slate-100 font-medium"></tbody>
+          </table>
+        </div>
+
+        <div class="p-4 bg-slate-50/60 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+          <div>Mostrando <span id="cmp-pagination-info" class="font-bold text-slate-700">0</span> componentes</div>
+          <div class="flex items-center gap-2">
+            <button onclick="prevCmpPage()" id="cmp-btn-prev" class="px-3 py-1.5 rounded-lg border border-slate-200 bg-white font-semibold hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition">Anterior</button>
+            <span id="cmp-page-number" class="font-bold px-2 text-slate-800">1</span>
+            <button onclick="nextCmpPage()" id="cmp-btn-next" class="px-3 py-1.5 rounded-lg border border-slate-200 bg-white font-semibold hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition">Siguiente</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. VISTA: MOVIMIENTOS & TRAZABILIDAD -->
+    <section id="view-movimientos" class="space-y-6 hidden fade-in">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-bold text-slate-900">Historial de Movimientos y Auditoría</h2>
+          <p class="text-sm text-slate-500">Registro inmutable en Supabase de entradas, salidas y contra-asientos trazables.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="openModalMovimiento()" class="admin-only inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-md transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Nuevo Movimiento
+          </button>
+        </div>
+      </div>
+
+      <!-- Filtros de Movimientos -->
+      <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+            Filtrar Historial y Períodos
+          </span>
+          <button onclick="clearMovFilters()" class="text-xs font-semibold text-rose-600 hover:text-rose-800 transition flex items-center gap-1">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            Limpiar Filtros
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Componente</label>
+            <select id="filter-mov-component" onchange="applyMovFilters()" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/50">
+              <option value="">Todos los componentes</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Tipo de Movimiento</label>
+            <select id="filter-mov-type" onchange="applyMovFilters()" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/50">
+              <option value="">Todos (Entradas, Salidas, Ajustes)</option>
+              <option value="ENTRADA">Solo Entradas</option>
+              <option value="SALIDA">Solo Salidas</option>
+              <option value="REVERSION">Solo Reversiones / Ajustes</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Fecha Desde</label>
+            <input type="date" id="filter-mov-from" onchange="applyMovFilters()" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/50">
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">Fecha Hasta</label>
+            <input type="date" id="filter-mov-to" onchange="applyMovFilters()" class="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/50">
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabla de Movimientos -->
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50/80 text-slate-500 uppercase text-[10px] font-bold tracking-wider border-b border-slate-200">
+              <tr>
+                <th class="py-3.5 px-4">ID Auditoría</th>
+                <th class="py-3.5 px-4">Fecha / Hora</th>
+                <th class="py-3.5 px-4">Componente</th>
+                <th class="py-3.5 px-4 text-center">Tipo</th>
+                <th class="py-3.5 px-4 text-center">Cantidad</th>
+                <th class="py-3.5 px-4">Motivo / Trazabilidad</th>
+                <th class="py-3.5 px-4 text-center">Estado Auditoría</th>
+                <th class="py-3.5 px-4 text-right">Acción Reversión</th>
+              </tr>
+            </thead>
+            <tbody id="movements-table-body" class="divide-y divide-slate-100 font-medium"></tbody>
+          </table>
+        </div>
+
+        <div class="p-4 bg-slate-50/60 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+          <div>Mostrando <span id="mov-pagination-info" class="font-bold text-slate-700">0</span> movimientos</div>
+          <div class="flex items-center gap-2">
+            <button onclick="prevMovPage()" id="mov-btn-prev" class="px-3 py-1.5 rounded-lg border border-slate-200 bg-white font-semibold hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition">Anterior</button>
+            <span id="mov-page-number" class="font-bold px-2 text-slate-800">1</span>
+            <button onclick="nextMovPage()" id="mov-btn-next" class="px-3 py-1.5 rounded-lg border border-slate-200 bg-white font-semibold hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition">Siguiente</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. VISTA: CATEGORÍAS -->
+    <section id="view-categorias" class="space-y-6 hidden fade-in">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-bold text-slate-900">Categorías de Componentes</h2>
+          <p class="text-sm text-slate-500">Clasificación técnica de componentes almacenada en Supabase.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="openModalCategoria()" class="admin-only inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-md transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Nueva Categoría
+          </button>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50/80 text-slate-500 uppercase text-[10px] font-bold tracking-wider border-b border-slate-200">
+              <tr>
+                <th class="py-3.5 px-4">ID</th>
+                <th class="py-3.5 px-4">Nombre de Categoría</th>
+                <th class="py-3.5 px-4">Descripción</th>
+                <th class="py-3.5 px-4 text-center">Componentes Asociados</th>
+                <th class="py-3.5 px-4">Fecha Creación</th>
+                <th class="py-3.5 px-4 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="categories-table-body" class="divide-y divide-slate-100 font-medium"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================= PIE DE PÁGINA ACADÉMICO ================= -->
+  <footer class="bg-white border-t border-slate-200 mt-auto py-5 text-center text-xs text-slate-500">
+    <div class="max-w-7xl mx-auto px-4">
+      <p class="font-semibold text-slate-700">COLEGIO NACIONAL EMD ASUNCIÓN ESCALADA — Proyecto Individual 08</p>
+      <p class="text-[11px] text-slate-400 mt-1">Desarrollado por: <strong>LUGO IRALA, LUCAS ALFREDO</strong> | 2° Curso, 3ra Sección - Turno Mañana</p>
+    </div>
+  </footer>
+
+  <!-- ================= MODALES ================= -->
+
+  <!-- MODAL: REGISTRAR MOVIMIENTO -->
+  <div id="modal-movimiento" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-lg p-6 overflow-hidden">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+        <div>
+          <h3 class="text-base font-bold text-slate-900">Registrar Movimiento en Supabase</h3>
+          <p class="text-xs text-slate-500">Validación de stock en vivo y cálculo dinámico inalterable.</p>
+        </div>
+        <button onclick="closeModal('modal-movimiento')" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <form id="form-movimiento" onsubmit="handleSaveMovimiento(event)" class="mt-4 space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Componente <span class="text-rose-500">*</span></label>
+          <select id="mov-componente-id" required onchange="updateMovPreview()" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-white">
+            <option value="">Seleccione un componente...</option>
+          </select>
+        </div>
+
+        <div id="mov-stock-preview" class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
+          <span class="text-slate-600">Existencias actuales en Supabase:</span>
+          <span id="mov-current-stock-val" class="font-black text-slate-800 text-sm">--</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Tipo de Movimiento <span class="text-rose-500">*</span></label>
+            <select id="mov-tipo" required onchange="updateMovPreview()" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-white font-semibold">
+              <option value="ENTRADA">🟢 ENTRADA (Suma)</option>
+              <option value="SALIDA">🔴 SALIDA (Resta)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Cantidad <span class="text-rose-500">*</span></label>
+            <input type="number" id="mov-cantidad" min="1" step="1" required placeholder="Mayor a 0" oninput="updateMovPreview()" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Motivo / Destino <span class="text-rose-500">*</span></label>
+          <input type="text" id="mov-motivo" required placeholder="Ej. Adquisición inicial, Laboratorio, Reparación" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+        </div>
+
+        <div id="mov-validation-feedback" class="text-xs p-3 rounded-xl hidden"></div>
+
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeModal('modal-movimiento')" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition">Cancelar</button>
+          <button type="submit" id="btn-submit-mov" class="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md transition">Confirmar y Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: COMPONENTE -->
+  <div id="modal-componente" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-lg p-6">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+        <div>
+          <h3 id="modal-cmp-title" class="text-base font-bold text-slate-900">Registrar Nuevo Componente</h3>
+          <p class="text-xs text-slate-500">Identificador único y campos auditables.</p>
+        </div>
+        <button onclick="closeModal('modal-componente')" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <form id="form-componente" onsubmit="handleSaveComponente(event)" class="mt-4 space-y-4">
+        <input type="hidden" id="cmp-id">
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Código Único <span class="text-rose-500">*</span></label>
+            <input type="text" id="cmp-code" required placeholder="Ej. ESP32-WROOM, IC-NE555" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 uppercase">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Stock Mínimo <span class="text-rose-500">*</span></label>
+            <input type="number" id="cmp-stock-min" required min="1" placeholder="Ej. 10" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Descripción / Especificación Técnica <span class="text-rose-500">*</span></label>
+          <input type="text" id="cmp-name" required placeholder="Ej. Microcontrolador AVR 8-bit DIP-28" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Categoría Técnica <span class="text-rose-500">*</span></label>
+          <select id="cmp-category-id" required class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-white"></select>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeModal('modal-componente')" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition">Cancelar</button>
+          <button type="submit" id="btn-submit-cmp" class="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md transition">Guardar Componente</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: CATEGORÍA -->
+  <div id="modal-categoria" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-md p-6">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+        <div>
+          <h3 id="modal-cat-title" class="text-base font-bold text-slate-900">Nueva Categoría</h3>
+          <p class="text-xs text-slate-500">Almacenamiento en tabla `categories` de Supabase.</p>
+        </div>
+        <button onclick="closeModal('modal-categoria')" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <form id="form-categoria" onsubmit="handleSaveCategoria(event)" class="mt-4 space-y-4">
+        <input type="hidden" id="cat-id">
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Nombre de la Categoría <span class="text-rose-500">*</span></label>
+          <input type="text" id="cat-name" required placeholder="Ej. Microcontroladores, Pasivos, Diodos" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Descripción</label>
+          <textarea id="cat-desc" rows="2" placeholder="Notas de alcance técnico..." class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 resize-none"></textarea>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeModal('modal-categoria')" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition">Cancelar</button>
+          <button type="submit" id="btn-submit-cat" class="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md transition">Guardar Categoría</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: REVERSIÓN TRAZABLE -->
+  <div id="modal-reversion" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-md p-6">
+      <div class="flex items-center gap-3 pb-3 border-b border-slate-100 text-amber-600">
+        <div class="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center font-bold">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        </div>
+        <div>
+          <h3 class="text-base font-bold text-slate-900">Reversión Trazable de Movimiento</h3>
+          <p class="text-xs text-slate-500">Contra-asiento auditado con referencia cruzada.</p>
+        </div>
+      </div>
+
+      <div class="mt-4 space-y-3 text-xs text-slate-600">
+        <div class="p-3 bg-slate-50 rounded-xl space-y-1">
+          <p><strong>ID Original:</strong> <span id="rev-info-id" class="font-mono font-bold text-slate-800"></span></p>
+          <p><strong>Componente:</strong> <span id="rev-info-cmp" class="font-bold text-slate-800"></span></p>
+          <p><strong>Operación:</strong> <span id="rev-info-tipo" class="font-bold"></span> de <span id="rev-info-cant" class="font-bold"></span> unidades</p>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Motivo Justificado <span class="text-rose-500">*</span></label>
+          <input type="text" id="rev-motivo" required placeholder="Ej. Error de digitación en cantidad, despacho devuelto" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
+        </div>
+
+        <p class="text-[11px] text-slate-400 italic">
+          * Para preservar la trazabilidad de auditoría, el movimiento original no se borra: se marca como revertido y se crea el contra-asiento correspondiente.
+        </p>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-4 mt-3 border-t border-slate-100">
+        <button type="button" onclick="closeModal('modal-reversion')" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition">Cancelar</button>
+        <button type="button" id="btn-confirm-revert" onclick="confirmRevertMovimiento()" class="px-5 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-xl shadow-md transition">Confirmar Reversión</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- LÓGICA SUPABASE CLIENT & REGLAS DE NEGOCIO              -->
+  <!-- ======================================================== -->
+  <script>
+    // -----------------------------------------------------------------
+    // 1. CONFIGURACIÓN SUPABASE CON TUS DATOS OFICIALES
+    // -----------------------------------------------------------------
+    const SUPABASE_PROJECT_ID = 'uafeynxbtsntenerrqat';
+    const SUPABASE_URL = `https://${SUPABASE_PROJECT_ID}.supabase.co`;
+    const SUPABASE_ANON_KEY = 'sb_publishable_8UbKm1jBj_7a-psmMBgAOA_T2EjmHU3';
+
+    let db = null;
+    let isSupabaseConnected = false;
+
+    // Estado reactivo en memoria
+    let state = {
+      currentUser: { role: 'admin', name: 'LUGO IRALA, LUCAS ALFREDO' },
+      categories: [],
+      components: [],
+      movements: []
+    };
+
+    // Paginación y control
+    let cmpPage = 1;
+    const cmpPageSize = 8;
+    let movPage = 1;
+    const movPageSize = 10;
+    let targetRevertMovId = null;
+
+    // Inicializar cliente Supabase
+    function initSupabase() {
+      const pill = document.getElementById('supabase-pill');
+
+      try {
+        const { createClient } = supabase;
+        db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        isSupabaseConnected = true;
+
+        pill.className = "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30";
+        pill.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Supabase Conectado`;
+
+        fetchFromSupabase();
+        setupRealtime();
+      } catch (err) {
+        console.error('Error inicializando Supabase:', err);
+        pill.className = "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-400/30";
+        pill.innerHTML = `✕ Error Conexión`;
+      }
+    }
+
+    // -----------------------------------------------------------------
+    // 2. SINCRONIZACIÓN CON SUPABASE
+    // -----------------------------------------------------------------
+    async function fetchFromSupabase() {
+      if (!isSupabaseConnected) return;
+
+      try {
+        const [catRes, cmpRes, movRes] = await Promise.all([
+          db.from('categories').select('*').order('created_at', { ascending: false }),
+          db.from('components').select('*').order('code', { ascending: true }),
+          db.from('movements').select('*').order('fecha', { ascending: false })
+        ]);
+
+        if (catRes.error) throw catRes.error;
+        if (cmpRes.error) throw cmpRes.error;
+        if (movRes.error) throw movRes.error;
+
+        state.categories = catRes.data || [];
+        state.components = cmpRes.data || [];
+        state.movements = movRes.data || [];
+
+        // Si la base de datos está vacía, notificar para sembrar datos
+        if (state.categories.length === 0 && state.components.length === 0) {
+          notify('info', 'Base de Datos Vacía', 'Tu base en Supabase está lista. Pulsa "Cargar Datos Semilla" para registrar los componentes iniciales.');
+        }
+
+        updateDropdowns();
+        renderAll();
+      } catch (err) {
+        console.error('Error descargando datos:', err.message);
+        notify('error', 'Error Supabase', 'No se pudieron descargar los datos: ' + err.message);
+      }
+    }
+
+    function setupRealtime() {
+      if (!isSupabaseConnected) return;
+      db.channel('inventario-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => fetchFromSupabase())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'components' }, () => fetchFromSupabase())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'movements' }, () => fetchFromSupabase())
+        .subscribe();
+    }
+
+    // Datos semilla académicos
+    function getMockData() {
+      const past = new Date(Date.now() - 86400000 * 2).toISOString();
+      const now = new Date().toISOString();
+
+      const categories = [
+        { id: 'CAT-001', name: 'Microcontroladores y SoC', description: 'Placas programables, SoCs y chips de control.', created_at: past, updated_at: past },
+        { id: 'CAT-002', name: 'Semiconductores y CIs', description: 'Temporizadores, reguladores, transistores y diodos.', created_at: past, updated_at: past },
+        { id: 'CAT-003', name: 'Componentes Pasivos', description: 'Resistencias, capacitores e inductores.', created_at: past, updated_at: past },
+        { id: 'CAT-004', name: 'Optoelectrónica', description: 'LEDs difusos, displays y fotodiodos.', created_at: past, updated_at: past }
+      ];
+
+      const components = [
+        { id: 'CMP-001', code: 'ESP32-WROOM', name: 'Módulo Wi-Fi + Bluetooth ESP32-WROOM-32D', category_id: 'CAT-001', stock_min: 15, created_at: past, updated_at: past },
+        { id: 'CMP-002', code: 'ATMEGA328P', name: 'Microcontrolador AVR 8-bit DIP-28', category_id: 'CAT-001', stock_min: 10, created_at: past, updated_at: past },
+        { id: 'CMP-003', code: 'IC-NE555P', name: 'Temporizador de precisión DIP-8', category_id: 'CAT-002', stock_min: 25, created_at: past, updated_at: past },
+        { id: 'CMP-004', code: 'REG-LM7805', name: 'Regulador lineal 5V 1.5A TO-220', category_id: 'CAT-002', stock_min: 20, created_at: past, updated_at: past },
+        { id: 'CMP-005', code: 'RES-10K-025W', name: 'Resistencia película carbón 10kΩ 1/4W 5%', category_id: 'CAT-003', stock_min: 100, created_at: past, updated_at: past },
+        { id: 'CMP-006', code: 'LED-5MM-RED', name: 'Diodo LED Difuso 5mm Color Rojo', category_id: 'CAT-004', stock_min: 80, created_at: past, updated_at: past }
+      ];
+
+      const movements = [
+        { id: 'MOV-1001', componente_id: 'CMP-001', tipo: 'ENTRADA', cantidad: 20, fecha: past, motivo: 'Lote inicial taller robótica', es_reversion: false, revertido: false, created_at: past },
+        { id: 'MOV-1002', componente_id: 'CMP-001', tipo: 'SALIDA', cantidad: 12, fecha: now, motivo: 'Práctica segundo curso 3ra sección', es_reversion: false, revertido: false, created_at: now },
+        { id: 'MOV-1003', componente_id: 'CMP-002', tipo: 'ENTRADA', cantidad: 25, fecha: past, motivo: 'Adquisición laboratorio', es_reversion: false, revertido: false, created_at: past },
+        { id: 'MOV-1004', componente_id: 'CMP-003', tipo: 'ENTRADA', cantidad: 50, fecha: past, motivo: 'Donación institucional', es_reversion: false, revertido: false, created_at: past },
+        { id: 'MOV-1005', componente_id: 'CMP-003', tipo: 'SALIDA', cantidad: 35, fecha: now, motivo: 'Práctica oscilador astable', es_reversion: false, revertido: false, created_at: now },
+        { id: 'MOV-1006', componente_id: 'CMP-005', tipo: 'ENTRADA', cantidad: 400, fecha: past, motivo: 'Paquete mayorista', es_reversion: false, revertido: false, created_at: past },
+        { id: 'MOV-1007', componente_id: 'CMP-006', tipo: 'ENTRADA', cantidad: 100, fecha: past, motivo: 'Ingreso almacén', es_reversion: false, revertido: false, created_at: past },
+        { id: 'MOV-1008', componente_id: 'CMP-006', tipo: 'SALIDA', cantidad: 40, fecha: now, motivo: 'Semáforo secuencial con Arduino', es_reversion: false, revertido: false, created_at: now }
+      ];
+
+      return { categories, components, movements };
+    }
+
+    async function seedInitialSupabaseData() {
+      if (state.currentUser.role !== 'admin') {
+        notify('error', 'Rechazado', 'Solo el Administrador puede sembrar datos semilla.');
+        return;
+      }
+      if (!confirm('¿Desea sembrar las categorías, componentes y movimientos de prueba académicos en Supabase?')) return;
+
+      const mocks = getMockData();
+
+      try {
+        await db.from('categories').upsert(mocks.categories);
+        await db.from('components').upsert(mocks.components);
+        await db.from('movements').upsert(mocks.movements);
+        notify('success', 'Sembrado Exitoso', 'Los datos iniciales se insertaron en Supabase con éxito.');
+        await fetchFromSupabase();
+      } catch(err) {
+        notify('error', 'Error en Sembrado', err.message);
+      }
+    }
+
+    // -----------------------------------------------------------------
+    // 3. REGLAS DE NEGOCIO: CÁLCULO DINÁMICO DE EXISTENCIAS
+    // -----------------------------------------------------------------
+    function calculateComponentStock(componentId) {
+      return state.movements
+        .filter(m => m.componente_id === componentId)
+        .reduce((acc, m) => {
+          const q = Number(m.cantidad) || 0;
+          if (m.tipo === 'ENTRADA') return acc + q;
+          if (m.tipo === 'SALIDA') return acc - q;
+          return acc;
+        }, 0);
+    }
+
+    // -----------------------------------------------------------------
+    // 4. CONTROL DE ROLES
+    // -----------------------------------------------------------------
+    function setRole(newRole) {
+      state.currentUser.role = newRole;
+      const adminBtn = document.getElementById('role-btn-admin');
+      const consultaBtn = document.getElementById('role-btn-consulta');
+      const roleText = document.getElementById('role-display-text');
+
+      if (newRole === 'admin') {
+        adminBtn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-sm bg-indigo-600 text-white";
+        consultaBtn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-300 hover:text-white";
+        roleText.innerHTML = `<span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Administrador (Control Total)`;
+        roleText.className = "text-xs font-bold text-emerald-400 flex items-center gap-1 sm:justify-end";
+        notify('info', 'Cambio de Rol', 'Has ingresado como Administrador. Acceso total a operaciones y reversiones.');
+      } else {
+        consultaBtn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-sm bg-indigo-600 text-white";
+        adminBtn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-300 hover:text-white";
+        roleText.innerHTML = `<span class="inline-block w-2 h-2 rounded-full bg-amber-400"></span> Usuario Consulta (Solo Lectura)`;
+        roleText.className = "text-xs font-bold text-amber-400 flex items-center gap-1 sm:justify-end";
+        notify('info', 'Cambio de Rol', 'Has ingresado como Usuario de Consulta. Solo podrás revisar y filtrar datos.');
+      }
+
+      enforceRoleRestrictions();
+      renderAll();
+    }
+
+    function enforceRoleRestrictions() {
+      const isAdmin = state.currentUser.role === 'admin';
+      document.querySelectorAll('.admin-only').forEach(el => {
+        if (isAdmin) {
+          el.classList.remove('hidden');
+          el.removeAttribute('disabled');
+        } else {
+          el.classList.add('hidden');
+          el.setAttribute('disabled', 'true');
+        }
+      });
+    }
+
+    // -----------------------------------------------------------------
+    // 5. REGISTRAR MOVIMIENTO (CRUD + VALIDACIÓN STRICTA)
+    // -----------------------------------------------------------------
+    function openModalMovimiento() {
+      if (state.currentUser.role !== 'admin') {
+        notify('error', 'Permiso Denegado', 'El rol de Consulta no tiene autorización para registrar movimientos.');
+        return;
+      }
+      document.getElementById('form-movimiento').reset();
+      document.getElementById('mov-validation-feedback').classList.add('hidden');
+      updateMovPreview();
+      openModal('modal-movimiento');
+    }
+
+    function updateMovPreview() {
+      const cmpId = document.getElementById('mov-componente-id').value;
+      const tipo = document.getElementById('mov-tipo').value;
+      const cant = Number(document.getElementById('mov-cantidad').value) || 0;
+      const feedback = document.getElementById('mov-validation-feedback');
+      const submitBtn = document.getElementById('btn-submit-mov');
+      const currentStockEl = document.getElementById('mov-current-stock-val');
+
+      if (!cmpId) {
+        currentStockEl.innerText = '--';
+        feedback.classList.add('hidden');
+        submitBtn.removeAttribute('disabled');
+        return;
+      }
+
+      const currentStock = calculateComponentStock(cmpId);
+      currentStockEl.innerText = `${currentStock} unidades`;
+
+      if (cant <= 0 && document.getElementById('mov-cantidad').value !== '') {
+        feedback.className = "text-xs p-3 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 block";
+        feedback.innerHTML = `⚠️ <strong>Cantidad Inválida:</strong> La cantidad debe ser un número entero estrictamente mayor a 0.`;
+        submitBtn.setAttribute('disabled', 'true');
+        return;
+      }
+
+      if (tipo === 'SALIDA') {
+        const projected = currentStock - cant;
+        if (projected < 0) {
+          feedback.className = "text-xs p-3 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 block";
+          feedback.innerHTML = `🚫 <strong>Rechazo Automático:</strong> Stock insuficiente en base de datos. Intentas retirar <strong>${cant}</strong> unidades, pero solo existen <strong>${currentStock}</strong> disponibles. Esto generaría existencias negativas prohibidas.`;
+          submitBtn.setAttribute('disabled', 'true');
+          return;
+        } else {
+          feedback.className = "text-xs p-3 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 block";
+          feedback.innerHTML = `ℹ️ <strong>Balance proyectado:</strong> Al retirar ${cant} unidades, el stock resultante será de <strong>${projected}</strong> unidades.`;
+          submitBtn.removeAttribute('disabled');
+          return;
+        }
+      }
+
+      if (tipo === 'ENTRADA') {
+        const projected = currentStock + cant;
+        feedback.className = "text-xs p-3 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 block";
+        feedback.innerHTML = `ℹ️ <strong>Balance proyectado:</strong> Al ingresar ${cant} unidades, el nuevo stock total ascenderá a <strong>${projected}</strong> unidades.`;
+        submitBtn.removeAttribute('disabled');
+        return;
+      }
+
+      feedback.classList.add('hidden');
+      submitBtn.removeAttribute('disabled');
+    }
+
+    async function handleSaveMovimiento(e) {
+      e.preventDefault();
+      if (state.currentUser.role !== 'admin') return;
+
+      const submitBtn = document.getElementById('btn-submit-mov');
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'Guardando...';
+
+      const cmpId = document.getElementById('mov-componente-id').value;
+      const tipo = document.getElementById('mov-tipo').value;
+      const cantidad = Number(document.getElementById('mov-cantidad').value);
+      const motivo = document.getElementById('mov-motivo').value.trim();
+
+      // Regla de Negocio 1: Cantidades positivas
+      if (isNaN(cantidad) || cantidad <= 0) {
+        notify('error', 'Operación Rechazada', 'La cantidad registrada debe ser mayor a 0.');
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'Confirmar y Guardar';
+        return;
+      }
+
+      // Regla de Negocio 2: No stock negativo
+      const currentStock = calculateComponentStock(cmpId);
+      if (tipo === 'SALIDA' && currentStock - cantidad < 0) {
+        notify('error', 'Operación Rechazada', 
+          `Salida denegada. El stock actual es de ${currentStock} unidades y se intentaron retirar ${cantidad}. No se permiten existencias negativas.`);
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'Confirmar y Guardar';
+        return;
+      }
+
+      const newMov = {
+        id: `MOV-${Date.now().toString().slice(-5)}`,
+        componente_id: cmpId,
+        tipo: tipo,
+        cantidad: cantidad,
+        fecha: new Date().toISOString(),
+        motivo: motivo,
+        es_reversion: false,
+        revertido: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      try {
+        const { error } = await db.from('movements').insert([newMov]);
+        if (error) throw error;
+        notify('success', 'Guardado en Supabase', `Se registró ${tipo} de ${cantidad} unidades con éxito.`);
+        closeModal('modal-movimiento');
+        await fetchFromSupabase();
+      } catch(err) {
+        notify('error', 'Error Supabase', err.message);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'Confirmar y Guardar';
+      }
+    }
+
+    // -----------------------------------------------------------------
+    // 6. CORRECCIÓN TRAZABLE DE MOVIMIENTOS (REVERSIÓN AUDITADA)
+    // -----------------------------------------------------------------
+    function promptRevertMovimiento(movId) {
+      if (state.currentUser.role !== 'admin') {
+        notify('error', 'Acción Bloqueada', 'Solo el Administrador puede anular o revertir movimientos.');
+        return;
+      }
+
+      const mov = state.movements.find(m => m.id === movId);
+      if (!mov || mov.revertido) return;
+
+      const cmp = state.components.find(c => c.id === mov.componente_id);
+      targetRevertMovId = movId;
+
+      document.getElementById('rev-info-id').innerText = mov.id;
+      document.getElementById('rev-info-cmp').innerText = cmp ? cmp.name : 'N/A';
+      document.getElementById('rev-info-tipo').innerText = mov.tipo;
+      document.getElementById('rev-info-cant').innerText = mov.cantidad;
+      document.getElementById('rev-motivo').value = '';
+
+      openModal('modal-reversion');
+    }
+
+    async function confirmRevertMovimiento() {
+      if (!targetRevertMovId) return;
+      const motivo = document.getElementById('rev-motivo').value.trim();
+      if (!motivo) {
+        notify('error', 'Dato Requerido', 'Debe ingresar una justificación formal para la reversión.');
+        return;
+      }
+
+      const originalMov = state.movements.find(m => m.id === targetRevertMovId);
+      if (!originalMov) return;
+
+      // Validación de consistencia: si revertimos una ENTRADA, retiramos stock
+      if (originalMov.tipo === 'ENTRADA') {
+        const currentStock = calculateComponentStock(originalMov.componente_id);
+        if (currentStock - originalMov.cantidad < 0) {
+          notify('error', 'Reversión Imposible', 
+            `No se puede anular la entrada original de ${originalMov.cantidad} unidades porque el stock actual en Supabase es de solo ${currentStock} unidades. Anular esta entrada generaría existencias negativas.`);
+          closeModal('modal-reversion');
+          return;
+        }
+      }
+
+      const oppositeType = originalMov.tipo === 'ENTRADA' ? 'SALIDA' : 'ENTRADA';
+      const reversalMov = {
+        id: `REV-${Date.now().toString().slice(-5)}`,
+        componente_id: originalMov.componente_id,
+        tipo: oppositeType,
+        cantidad: originalMov.cantidad,
+        fecha: new Date().toISOString(),
+        motivo: `[REVERSIÓN DE #${originalMov.id}] Razón: ${motivo}`,
+        es_reversion: true,
+        movimiento_referencia_id: originalMov.id,
+        revertido: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      const btn = document.getElementById('btn-confirm-revert');
+      btn.disabled = true;
+      btn.innerText = 'Procesando...';
+
+      try {
+        // 1. Marcar original como revertido
+        const { error: errUpdate } = await db.from('movements')
+          .update({ revertido: true, updated_at: new Date().toISOString() })
+          .eq('id', originalMov.id);
+        if (errUpdate) throw errUpdate;
+
+        // 2. Insertar contra-asiento
+        const { error: errInsert } = await db.from('movements').insert([reversalMov]);
+        if (errInsert) throw errInsert;
+
+        notify('success', 'Reversión Auditada', `Movimiento #${originalMov.id} anulado. Se registró asiento de ajuste #${reversalMov.id} en Supabase.`);
+        closeModal('modal-reversion');
+        await fetchFromSupabase();
+      } catch(err) {
+        notify('error', 'Error en Reversión', err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Confirmar Reversión';
+      }
+    }
+
+    // -----------------------------------------------------------------
+    // 7. CRUD COMPONENTES
+    // -----------------------------------------------------------------
+    function openModalComponente() {
+      if (state.currentUser.role !== 'admin') {
+        notify('error', 'Permiso Denegado', 'Solo el Administrador puede registrar componentes.');
+        return;
+      }
+      document.getElementById('form-componente').reset();
+      document.getElementById('cmp-id').value = '';
+      document.getElementById('modal-cmp-title').innerText = 'Registrar Nuevo Componente';
+      openModal('modal-componente');
+    }
+
+    function editComponente(id) {
+      if (state.currentUser.role !== 'admin') return;
+      const cmp = state.components.find(c => c.id === id);
+      if (!cmp) return;
+
+      document.getElementById('cmp-id').value = cmp.id;
+      document.getElementById('cmp-code').value = cmp.code;
+      document.getElementById('cmp-name').value = cmp.name;
+      document.getElementById('cmp-category-id').value = cmp.category_id;
+      document.getElementById('cmp-stock-min').value = cmp.stock_min;
+      document.getElementById('modal-cmp-title').innerText = 'Modificar Componente';
+      openModal('modal-componente');
+    }
+
+    async function handleSaveComponente(e) {
+      e.preventDefault();
+      if (state.currentUser.role !== 'admin') return;
+
+      const submitBtn = document.getElementById('btn-submit-cmp');
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'Guardando...';
+
+      const id = document.getElementById('cmp-id').value;
+      const code = document.getElementById('cmp-code').value.trim().toUpperCase();
+      const name = document.getElementById('cmp-name').value.trim();
+      const category_id = document.getElementById('cmp-category-id').value;
+      const stock_min = Number(document.getElementById('cmp-stock-min').value);
+
+      // Validar código duplicado
+      const duplicate = state.components.find(c => c.code === code && c.id !== id);
+      if (duplicate) {
+        notify('error', 'Código Duplicado', `Ya existe un componente con el código "${code}".`);
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'Guardar Componente';
+        return;
+      }
+
+      try {
+        if (id) {
+          const { error } = await db.from('components')
+            .update({ code, name, category_id, stock_min, updated_at: new Date().toISOString() })
+            .eq('id', id);
+          if (error) throw error;
+          notify('success', 'Componente Actualizado', `"${code}" actualizado con éxito.`);
+        } else {
+          const newCmp = {
+            id: `CMP-${Date.now().toString().slice(-4)}`,
+            code,
+            name,
+            category_id,
+            stock_min,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+
+          const { error } = await db.from('components').insert([newCmp]);
+          if (error) throw error;
+          notify('success', 'Componente Creado', `"${code}" registrado en el catálogo.`);
+        }
+
+        closeModal('modal-componente');
+        await fetchFromSupabase();
+      } catch(err) {
+        notify('error', 'Error al Guardar Componente', err.message);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'Guardar Componente';
+      }
+    }
+
+    async function deleteComponente(id) {
+      if (state.currentUser.role !== 'admin') return;
+      const cmp = state.components.find(c => c.id === id);
+      if (!cmp) return;
+
+      const stock = calculateComponentStock(id);
+      if (stock > 0) {
+        notify('error', 'Baja Denegada', `No se puede eliminar "${cmp.code}" porque tiene ${stock} unidades en stock.`);
+        return;
+      }
+
+      if (!confirm(`¿Confirma la baja definitiva del componente "${cmp.code}"?`)) return;
+
+      try {
+        const { error } = await db.from('components').delete().eq('id', id);
+        if (error) throw error;
+        notify('info', 'Componente Eliminado', `"${cmp.code}" fue dado de baja.`);
+        await fetchFromSupabase();
+      } catch(err) {
+        notify('error', 'Error al Eliminar', err.message);
+      }
+    }
+
+    // -----------------------------------------------------------------
+    // 8. CRUD CATEGORÍAS
+    // -----------------------------------------------------------------
+    function openModalCategoria() {
+      if (state.currentUser.role !== 'admin') return;
+      document.getElementById('form-categoria').reset();
+      document.getElementById('cat-id').value = '';
+      document.getElementById('modal-cat-title').innerText = 'Nueva Categoría';
+      openModal('modal-categoria');
+    }
+
+    function editCategoria(id) {
+      if (state.currentUser.role !== 'admin') return;
+      const cat = state.categories.find(c => c.id === id);
+      if (!cat) return;
+
+      document.getElementById('cat-id').value = cat.id;
+      document.getElementById('cat-name').value = cat.name;
+      document.getElementById('cat-desc').value = cat.description || '';
+      document.getElementById('modal-cat-title').innerText = 'Modificar Categoría';
+      openModal('modal-categoria');
+    }
+
+    async function handleSaveCategoria(e) {
+      e.preventDefault();
+      if (state.currentUser.role !== 'admin') return;
+
+      const submitBtn = document.getElementById('btn-submit-cat');
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'Guardando...';
+
+      const id = document.getElementById('cat-id').value;
+      const name = document.getElementById('cat-name').value.trim();
+      const desc = document.getElementById('cat-desc').value.trim();
+
+      try {
+        if (id) {
+          const { error } = await db.from('categories')
+            .update({ name, description: desc, updated_at: new Date().toISOString() })
+            .eq('id', id);
+          if (error) throw error;
+          notify('success', 'Categoría Actualizada', `"${name}" actualizada.`);
+        } else {
+          const newCat = {
+            id: `CAT-${Date.now().toString().slice(-4)}`,
+            name,
+            description: desc,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+
+          const { error } = await db.from('categories').insert([newCat]);
+          if (error) throw error;
+          notify('success', 'Categoría Creada', `"${name}" agregada con éxito.`);
+        }
+
+        closeModal('modal-categoria');
+        await fetchFromSupabase();
+      } catch(err) {
+        notify('error', 'Error al Guardar Categoría', err.message);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'Guardar Categoría';
+      }
+    }
+
+    async function deleteCategoria(id) {
+      if (state.currentUser.role !== 'admin') return;
+      const cat = state.categories.find(c => c.id === id);
+      if (!cat) return;
+
+      const linked = state.components.filter(c => c.category_id === id);
+      if (linked.length > 0) {
+        notify('error', 'Eliminación Bloqueada', `No se puede eliminar la categoría "${cat.name}" porque tiene ${linked.length} componentes asociados.`);
+        return;
+      }
+
+      if (!confirm(`¿Eliminar la categoría "${cat.name}"?`)) return;
+
+      try {
+        const { error } = await db.from('categories').delete().eq('id', id);
+        if (error) throw error;
+        notify('info', 'Categoría Eliminada', `"${cat.name}" ha sido removida.`);
+        await fetchFromSupabase();
+      } catch(err) {
+        notify('error', 'Error al Eliminar', err.message);
+      }
+    }
+
+    // -----------------------------------------------------------------
+    // 9. RENDERIZADO VISUAL Y DASHBOARD
+    // -----------------------------------------------------------------
+    function renderDashboard() {
+      let totalStock = 0;
+      let lowStockCount = 0;
+      const critical = [];
+
+      state.components.forEach(cmp => {
+        const s = calculateComponentStock(cmp.id);
+        totalStock += s;
+        if (s <= Number(cmp.stock_min)) {
+          lowStockCount++;
+          critical.push({ ...cmp, current_stock: s });
+        }
+      });
+
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth();
+
+      const totalSalidas = state.movements
+        .filter(m => {
+          if (m.tipo !== 'SALIDA') return false;
+          const d = new Date(m.fecha);
+          return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+        })
+        .reduce((sum, m) => sum + Number(m.cantidad), 0);
+
+      document.getElementById('metric-total-stock').innerText = totalStock.toLocaleString();
+      document.getElementById('metric-low-stock').innerText = lowStockCount;
+      document.getElementById('metric-total-salidas').innerText = totalSalidas.toLocaleString();
+      document.getElementById('metric-total-components').innerText = state.components.length;
+
+      // Tabla componentes bajo mínimo
+      const critTbody = document.getElementById('dashboard-critical-table');
+      if (critical.length === 0) {
+        critTbody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-slate-400">Excelente: No hay componentes bajo el stock mínimo.</td></tr>`;
+      } else {
+        critTbody.innerHTML = critical.slice(0, 5).map(c => `
+          <tr class="hover:bg-slate-50/60 transition">
+            <td class="py-2.5 font-mono font-bold text-slate-800">${escapeHTML(c.code)}</td>
+            <td class="py-2.5 text-slate-600 truncate max-w-[160px]">${escapeHTML(c.name)}</td>
+            <td class="py-2.5 text-right font-black text-rose-600">${c.current_stock}</td>
+            <td class="py-2.5 text-right text-slate-400">${c.stock_min}</td>
+          </tr>
+        `).join('');
+      }
+
+      // Tabla últimos movimientos
+      const recentTbody = document.getElementById('dashboard-recent-movements');
+      const recentMovs = [...state.movements].sort((a,b) => new Date(b.fecha) - new Date(a.fecha)).slice(0, 5);
+
+      if (recentMovs.length === 0) {
+        recentTbody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-slate-400">Sin movimientos registrados aún.</td></tr>`;
+      } else {
+        recentTbody.innerHTML = recentMovs.map(m => {
+          const cmp = state.components.find(c => c.id === m.componente_id);
+          const typeBadge = m.tipo === 'ENTRADA' 
+            ? `<span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[10px] font-bold">Entrada</span>`
+            : `<span class="bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full text-[10px] font-bold">Salida</span>`;
+
+          return `
+            <tr class="hover:bg-slate-50/60 transition">
+              <td class="py-2.5">${typeBadge}</td>
+              <td class="py-2.5 font-medium text-slate-700">${cmp ? escapeHTML(cmp.code) : 'N/A'}</td>
+              <td class="py-2.5 text-right font-bold text-slate-900">${m.cantidad}</td>
+              <td class="py-2.5 text-right text-slate-400 text-[10px]">${formatDate(m.fecha)}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+
+    function applyComponentFilters() {
+      const search = document.getElementById('filter-cmp-search').value.toLowerCase().trim();
+      const catId = document.getElementById('filter-cmp-category').value;
+      const lowStockOnly = document.getElementById('filter-cmp-lowstock').checked;
+      const sort = document.getElementById('filter-cmp-sort').value;
+
+      let filtered = state.components.map(cmp => ({
+        ...cmp,
+        current_stock: calculateComponentStock(cmp.id)
+      }));
+
+      if (search) filtered = filtered.filter(c => c.code.toLowerCase().includes(search) || c.name.toLowerCase().includes(search));
+      if (catId) filtered = filtered.filter(c => c.category_id === catId);
+      if (lowStockOnly) filtered = filtered.filter(c => c.current_stock <= Number(c.stock_min));
+
+      filtered.sort((a, b) => {
+        if (sort === 'code_asc') return a.code.localeCompare(b.code);
+        if (sort === 'name_asc') return a.name.localeCompare(b.name);
+        if (sort === 'stock_asc') return a.current_stock - b.current_stock;
+        if (sort === 'stock_desc') return b.current_stock - a.current_stock;
+        return 0;
+      });
+
+      const totalItems = filtered.length;
+      const maxPages = Math.ceil(totalItems / cmpPageSize) || 1;
+      if (cmpPage > maxPages) cmpPage = maxPages;
+      if (cmpPage < 1) cmpPage = 1;
+
+      const start = (cmpPage - 1) * cmpPageSize;
+      const pageItems = filtered.slice(start, start + cmpPageSize);
+
+      document.getElementById('cmp-pagination-info').innerText = totalItems;
+      document.getElementById('cmp-page-number').innerText = `${cmpPage} de ${maxPages}`;
+      document.getElementById('cmp-btn-prev').disabled = cmpPage <= 1;
+      document.getElementById('cmp-btn-next').disabled = cmpPage >= maxPages;
+
+      const tbody = document.getElementById('component-table-body');
+      const isAdmin = state.currentUser.role === 'admin';
+
+      if (pageItems.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400">No se encontraron componentes con los filtros seleccionados.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = pageItems.map(c => {
+        const cat = state.categories.find(k => k.id === c.category_id);
+        const isCrit = c.current_stock <= Number(c.stock_min);
+
+        return `
+          <tr class="hover:bg-slate-50/80 transition">
+            <td class="py-3 px-4 font-mono font-bold text-indigo-700">${escapeHTML(c.code)}</td>
+            <td class="py-3 px-4">
+              <div class="font-bold text-slate-900">${escapeHTML(c.name)}</div>
+              <div class="text-[10px] text-slate-400">ID: ${c.id}</div>
+            </td>
+            <td class="py-3 px-4 text-slate-600">
+              <span class="inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                ${cat ? escapeHTML(cat.name) : 'Sin categoría'}
+              </span>
+            </td>
+            <td class="py-3 px-4 text-center font-semibold text-slate-500">${c.stock_min}</td>
+            <td class="py-3 px-4 text-center">
+              <span class="text-sm font-black ${isCrit ? 'text-rose-600' : 'text-slate-800'}">
+                ${c.current_stock}
+              </span>
+            </td>
+            <td class="py-3 px-4 text-center">
+              ${isCrit 
+                ? `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                    <span class="w-1.5 h-1.5 rounded-full bg-rose-600"></span> Stock Crítico
+                   </span>`
+                : `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span> Normal
+                   </span>`
+              }
+            </td>
+            <td class="py-3 px-4 text-right">
+              ${isAdmin ? `
+                <div class="inline-flex items-center gap-1">
+                  <button onclick="editComponente('${c.id}')" class="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition" title="Editar">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                  </button>
+                  <button onclick="deleteComponente('${c.id}')" class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition" title="Dar de baja">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                  </button>
+                </div>
+              ` : `<span class="text-[10px] text-slate-400 italic">Solo lectura</span>`}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function applyMovFilters() {
+      const cmpId = document.getElementById('filter-mov-component').value;
+      const type = document.getElementById('filter-mov-type').value;
+      const from = document.getElementById('filter-mov-from').value;
+      const to = document.getElementById('filter-mov-to').value;
+
+      let filtered = [...state.movements];
+
+      if (cmpId) filtered = filtered.filter(m => m.componente_id === cmpId);
+      if (type === 'ENTRADA') filtered = filtered.filter(m => m.tipo === 'ENTRADA' && !m.es_reversion);
+      if (type === 'SALIDA') filtered = filtered.filter(m => m.tipo === 'SALIDA' && !m.es_reversion);
+      if (type === 'REVERSION') filtered = filtered.filter(m => m.es_reversion);
+
+      if (from) filtered = filtered.filter(m => new Date(m.fecha) >= new Date(from));
+      if (to) {
+        const toD = new Date(to);
+        toD.setHours(23, 59, 59, 999);
+        filtered = filtered.filter(m => new Date(m.fecha) <= toD);
+      }
+
+      filtered.sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
+
+      const totalItems = filtered.length;
+      const maxPages = Math.ceil(totalItems / movPageSize) || 1;
+      if (movPage > maxPages) movPage = maxPages;
+      if (movPage < 1) movPage = 1;
+
+      const start = (movPage - 1) * movPageSize;
+      const pageItems = filtered.slice(start, start + movPageSize);
+
+      document.getElementById('mov-pagination-info').innerText = totalItems;
+      document.getElementById('mov-page-number').innerText = `${movPage} de ${maxPages}`;
+      document.getElementById('mov-btn-prev').disabled = movPage <= 1;
+      document.getElementById('mov-btn-next').disabled = movPage >= maxPages;
+
+      const tbody = document.getElementById('movements-table-body');
+      const isAdmin = state.currentUser.role === 'admin';
+
+      if (pageItems.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-slate-400">No se encontraron movimientos registrados con esos filtros.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = pageItems.map(m => {
+        const cmp = state.components.find(c => c.id === m.componente_id);
+        let typeBadge = m.es_reversion 
+          ? `<span class="bg-purple-100 text-purple-700 px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-purple-200">Reversión</span>`
+          : (m.tipo === 'ENTRADA' 
+              ? `<span class="bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-emerald-200">🟢 Entrada</span>`
+              : `<span class="bg-rose-100 text-rose-700 px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-rose-200">🔴 Salida</span>`);
+
+        let estadoAuditoria = m.revertido 
+          ? `<span class="text-rose-600 font-bold text-[10px]">❌ Anulado (revertido)</span>`
+          : (m.es_reversion 
+              ? `<span class="text-purple-600 font-bold text-[10px]">🔄 Ajuste Trazable</span>`
+              : `<span class="text-emerald-600 font-bold text-[10px]">✓ Válido</span>`);
+
+        const canRevert = isAdmin && !m.revertido;
+
+        return `
+          <tr class="hover:bg-slate-50/80 transition ${m.revertido ? 'opacity-50 line-through bg-slate-50/50' : ''}">
+            <td class="py-3 px-4 font-mono text-[11px] font-bold text-slate-700">${m.id}</td>
+            <td class="py-3 px-4 text-slate-600">${formatDate(m.fecha)}</td>
+            <td class="py-3 px-4 font-semibold text-slate-900">${cmp ? escapeHTML(cmp.code) : 'N/A'}</td>
+            <td class="py-3 px-4 text-center">${typeBadge}</td>
+            <td class="py-3 px-4 text-center font-black ${m.tipo === 'ENTRADA' ? 'text-emerald-700' : 'text-rose-700'}">
+              ${m.tipo === 'ENTRADA' ? '+' : '-'}${m.cantidad}
+            </td>
+            <td class="py-3 px-4 text-slate-600 max-w-xs">
+              <div class="truncate">${escapeHTML(m.motivo)}</div>
+              ${m.movimiento_referencia_id ? `<div class="text-[10px] text-purple-600 font-mono">Ref: #${m.movimiento_referencia_id}</div>` : ''}
+            </td>
+            <td class="py-3 px-4 text-center">${estadoAuditoria}</td>
+            <td class="py-3 px-4 text-right">
+              ${canRevert ? `
+                <button onclick="promptRevertMovimiento('${m.id}')" class="px-2.5 py-1 text-[11px] font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg transition">Revertir</button>
+              ` : `<span class="text-[10px] text-slate-400">--</span>`}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderCategoriesTable() {
+      const tbody = document.getElementById('categories-table-body');
+      const isAdmin = state.currentUser.role === 'admin';
+
+      if (state.categories.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400">No hay categorías configuradas.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = state.categories.map(cat => {
+        const count = state.components.filter(c => c.category_id === cat.id).length;
+        return `
+          <tr class="hover:bg-slate-50/80 transition">
+            <td class="py-3.5 px-4 font-mono font-bold text-slate-700">${cat.id}</td>
+            <td class="py-3.5 px-4 font-bold text-slate-900">${escapeHTML(cat.name)}</td>
+            <td class="py-3.5 px-4 text-slate-600 max-w-sm truncate">${escapeHTML(cat.description || '--')}</td>
+            <td class="py-3.5 px-4 text-center font-bold text-indigo-600">${count}</td>
+            <td class="py-3.5 px-4 text-slate-400">${formatDate(cat.created_at)}</td>
+            <td class="py-3.5 px-4 text-right">
+              ${isAdmin ? `
+                <div class="inline-flex items-center gap-1">
+                  <button onclick="editCategoria('${cat.id}')" class="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition" title="Editar">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                  </button>
+                  <button onclick="deleteCategoria('${cat.id}')" class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition" title="Eliminar">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                  </button>
+                </div>
+              ` : `<span class="text-[10px] text-slate-400 italic">Solo lectura</span>`}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Actualización de selectores
+    function updateDropdowns() {
+      const cmpCatSelect = document.getElementById('cmp-category-id');
+      cmpCatSelect.innerHTML = state.categories.map(c => `<option value="${c.id}">${escapeHTML(c.name)}</option>`).join('');
+
+      const filterCatSelect = document.getElementById('filter-cmp-category');
+      filterCatSelect.innerHTML = `<option value="">Todas las categorías</option>` + state.categories.map(c => `<option value="${c.id}">${escapeHTML(c.name)}</option>`).join('');
+
+      const movCmpSelect = document.getElementById('mov-componente-id');
+      movCmpSelect.innerHTML = `<option value="">Seleccione un componente...</option>` + state.components.map(c => `<option value="${c.id}">[${escapeHTML(c.code)}] - ${escapeHTML(c.name)}</option>`).join('');
+
+      const filterMovCmpSelect = document.getElementById('filter-mov-component');
+      filterMovCmpSelect.innerHTML = `<option value="">Todos los componentes</option>` + state.components.map(c => `<option value="${c.id}">[${escapeHTML(c.code)}] ${escapeHTML(c.name)}</option>`).join('');
+    }
+
+    function renderAll() {
+      renderDashboard();
+      applyComponentFilters();
+      applyMovFilters();
+      renderCategoriesTable();
+      enforceRoleRestrictions();
+    }
+
+    // Funciones de utilidad y navegación
+    function switchTab(tabName) {
+      ['dashboard', 'componentes', 'movimientos', 'categorias'].forEach(t => {
+        document.getElementById(`view-${t}`).classList.add('hidden');
+        const btn = document.getElementById(`tab-btn-${t}`);
+        btn.classList.remove('border-indigo-600', 'text-indigo-600', 'font-semibold');
+        btn.classList.add('border-transparent', 'text-slate-500', 'font-medium');
+      });
+
+      document.getElementById(`view-${tabName}`).classList.remove('hidden');
+      const activeBtn = document.getElementById(`tab-btn-${tabName}`);
+      activeBtn.classList.remove('border-transparent', 'text-slate-500', 'font-medium');
+      activeBtn.classList.add('border-indigo-600', 'text-indigo-600', 'font-semibold');
+
+      if (tabName === 'componentes') applyComponentFilters();
+      if (tabName === 'movimientos') applyMovFilters();
+      if (tabName === 'dashboard') renderDashboard();
+      if (tabName === 'categorias') renderCategoriesTable();
+    }
+
+    function goToComponentesBajoStock() {
+      switchTab('componentes');
+      document.getElementById('filter-cmp-lowstock').checked = true;
+      applyComponentFilters();
+    }
+
+    function prevCmpPage() { if (cmpPage > 1) { cmpPage--; applyComponentFilters(); } }
+    function nextCmpPage() { cmpPage++; applyComponentFilters(); }
+    function clearComponentFilters() {
+      document.getElementById('filter-cmp-search').value = '';
+      document.getElementById('filter-cmp-category').value = '';
+      document.getElementById('filter-cmp-lowstock').checked = false;
+      document.getElementById('filter-cmp-sort').value = 'code_asc';
+      cmpPage = 1;
+      applyComponentFilters();
+    }
+
+    function prevMovPage() { if (movPage > 1) { movPage--; applyMovFilters(); } }
+    function nextMovPage() { movPage++; applyMovFilters(); }
+    function clearMovFilters() {
+      document.getElementById('filter-mov-component').value = '';
+      document.getElementById('filter-mov-type').value = '';
+      document.getElementById('filter-mov-from').value = '';
+      document.getElementById('filter-mov-to').value = '';
+      movPage = 1;
+      applyMovFilters();
+    }
+
+    function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+    function notify(type, title, message) {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `p-4 rounded-2xl shadow-xl border pointer-events-auto flex items-start gap-3 transition-all duration-300 transform translate-y-2 opacity-0 fade-in ${
+        type === 'error' ? 'bg-rose-900/95 text-white border-rose-700' :
+        type === 'success' ? 'bg-emerald-900/95 text-white border-emerald-700' :
+        'bg-slate-900/95 text-white border-slate-700'
+      }`;
+
+      const icon = type === 'error' 
+        ? `<svg class="w-5 h-5 text-rose-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`
+        : type === 'success'
+        ? `<svg class="w-5 h-5 text-emerald-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>`
+        : `<svg class="w-5 h-5 text-blue-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
+
+      toast.innerHTML = `
+        <div class="mt-0.5">${icon}</div>
+        <div class="flex-1">
+          <h4 class="text-xs font-bold uppercase tracking-wider">${title}</h4>
+          <p class="text-xs text-slate-200 mt-0.5 leading-relaxed">${message}</p>
+        </div>
+        <button onclick="this.parentElement.remove()" class="text-white/60 hover:text-white text-sm">✕</button>
+      `;
+
+      container.appendChild(toast);
+      setTimeout(() => toast.classList.remove('translate-y-2', 'opacity-0'), 20);
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 5000);
+    }
+
+    function formatDate(isoStr) {
+      if (!isoStr) return '--';
+      try {
+        const d = new Date(isoStr);
+        return d.toLocaleDateString('es-PY', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      } catch { return isoStr; }
+    }
+
+    function escapeHTML(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    // Arranque inicial
+    window.addEventListener('DOMContentLoaded', () => {
+      initSupabase();
+    });
+  </script>
+</body>
+</html>
